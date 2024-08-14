@@ -1,6 +1,6 @@
 # each window in out application has to be a new class
 # whether it be an insert box or an edit box
-
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 import sys
@@ -17,15 +17,15 @@ class MainWindow(QMainWindow):
         edit_menu_item = self.menuBar().addMenu("&Edit")
 
         add_student_action = QAction("Add Student", self)
-        add_student_action.triggered.connect(self.insert)
         file_menu_item.addAction(add_student_action)
+        add_student_action.triggered.connect(self.insert)
 
         about_action = QAction("About", self)
         help_menu_item.addAction(about_action)
 
         search_action = QAction("Search", self)
-        search_action.triggered.connect(self.search)
         edit_menu_item.addAction(search_action)
+        search_action.triggered.connect(self.search)
 
         # creating a table
         self.table = QTableWidget()
@@ -116,11 +116,54 @@ class InsertDialog(QDialog):
         connection.commit()
         cursor.close()
         connection.close()
-        SMS.load_data()
+        main_window.load_data()
+
+
+class SearchDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Search Record")
+        self.setFixedWidth(300)
+        self.setFixedHeight(300)
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        self.search_bar = QLineEdit()
+        self.search_bar.setPlaceholderText("John Doe")
+        layout.addWidget(self.search_bar)
+
+        self.button = QPushButton("Search")
+        self.button.clicked.connect(self.search)
+        layout.addWidget(self.button)
+
+    def search(self):
+        name = self.search_bar.text()
+        connection = psycopg2.connect(
+            dbname="python_mega_course",  # Replace with your database name
+            user="postgres",  # Replace with your PostgreSQL username
+            password="root",  # Replace with your PostgreSQL password
+            host="localhost",  # Replace with your database host (usually 'localhost')
+            port="5432"
+        )
+
+        cursor = connection.cursor()
+        cursor.execute("SELECT * FROM students WHERE name = %s", (name,))
+        result = cursor.fetchall()
+        print(result)
+        items = main_window.table.findItems(name, Qt.MatchFlag.MatchFixedString)
+        for item in items:
+            print(item)
+            main_window.table.item(item.row(), 1).setSelected(True)
+
+        cursor.close()
+        connection.close()
+
+
 
 
 app = QApplication(sys.argv)
-SMS = MainWindow()
-SMS.show()
-SMS.load_data()
+main_window = MainWindow()
+main_window.show()
+main_window.load_data()
 sys.exit(app.exec())
