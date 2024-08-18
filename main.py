@@ -11,21 +11,26 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Student Management System")
+        self.setMinimumSize(800, 600)
 
         file_menu_item = self.menuBar().addMenu("&File")
         help_menu_item = self.menuBar().addMenu("&Help")
         edit_menu_item = self.menuBar().addMenu("&Edit")
 
-        add_student_action = QAction("Add Student", self)
+        add_student_action = QAction(QIcon("icons/icons/add.png"), "Add Student", self)
         file_menu_item.addAction(add_student_action)
         add_student_action.triggered.connect(self.insert)
 
         about_action = QAction("About", self)
         help_menu_item.addAction(about_action)
 
-        search_action = QAction("Search", self)
+        search_action = QAction(QIcon("icons/icons/search.png"), "Search", self)
         edit_menu_item.addAction(search_action)
         search_action.triggered.connect(self.search)
+
+        delete_action = QAction("Delete", self)
+        edit_menu_item.addAction(delete_action)
+        delete_action.triggered.connect(self.delete)
 
         # creating a table
         self.table = QTableWidget()
@@ -34,6 +39,14 @@ class MainWindow(QMainWindow):
         # to remove the unassigned index colum just like pandas
         self.table.verticalHeader().setVisible(False)
         self.setCentralWidget(self.table)
+
+        # creating toolbar and adding elements
+        toolbar = QToolBar()
+        toolbar.setMovable(True)
+        self.addToolBar(toolbar)
+        toolbar.addAction(add_student_action)
+        toolbar.addAction(search_action)
+
 
     def load_data(self):
         connection = psycopg2.connect(
@@ -64,6 +77,10 @@ class MainWindow(QMainWindow):
 
     def search(self):
         dialog = SearchDialog()
+        dialog.exec()
+
+    def delete(self):
+        dialog = DeleteDialog()
         dialog.exec()
         
 
@@ -160,6 +177,40 @@ class SearchDialog(QDialog):
         connection.close()
 
 
+class DeleteDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Delete Record")
+        self.setFixedWidth(300)
+        self.setFixedHeight(300)
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        self.search_bar = QLineEdit()
+        self.search_bar.setPlaceholderText("John Doe")
+        layout.addWidget(self.search_bar)
+
+        self.button = QPushButton("Delete Record")
+        self.button.clicked.connect(self.delete)
+        layout.addWidget(self.button)
+
+    def delete(self):
+        name = self.search_bar.text()
+        connection = psycopg2.connect(
+            dbname="python_mega_course",  # Replace with your database name
+            user="postgres",  # Replace with your PostgreSQL username
+            password="root",  # Replace with your PostgreSQL password
+            host="localhost",  # Replace with your database host (usually 'localhost')
+            port="5432"
+        )
+
+        cursor = connection.cursor()
+        cursor.execute("DELETE FROM students WHERE name = %s", (name,))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        main_window.load_data()
 
 
 app = QApplication(sys.argv)
