@@ -23,6 +23,7 @@ class MainWindow(QMainWindow):
 
         about_action = QAction("About", self)
         help_menu_item.addAction(about_action)
+        about_action.triggered.connect(self.about)
 
         search_action = QAction(QIcon("icons/icons/search.png"), "Search", self)
         edit_menu_item.addAction(search_action)
@@ -68,7 +69,6 @@ class MainWindow(QMainWindow):
         self.statusbar.addWidget(edit_button)
         self.statusbar.addWidget(delete_button)
 
-
     def load_data(self):
         connection = psycopg2.connect(
             dbname="python_mega_course",  # Replace with your database name
@@ -107,7 +107,22 @@ class MainWindow(QMainWindow):
     def edit(self):
         dialog = EditDialog()
         dialog.exec()
-        
+
+    def about(self):
+        dialog = AboutDialog()
+        dialog.exec()
+
+
+class AboutDialog(QMessageBox):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("About")
+        content = """
+        This app was created during python-mega course.
+        Feel free to modify the code, test it and experiment on it.
+        """
+        self.setText(content)
+
 
 class InsertDialog(QDialog):
     def __init__(self):
@@ -206,22 +221,25 @@ class DeleteDialog(QDialog):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Delete Record")
-        self.setFixedWidth(300)
-        self.setFixedHeight(300)
 
-        layout = QVBoxLayout()
+        layout = QGridLayout()
         self.setLayout(layout)
 
-        self.search_bar = QLineEdit()
-        self.search_bar.setPlaceholderText("John Doe")
-        layout.addWidget(self.search_bar)
+        confirmation = QLabel("Are you sure you want to delete?")
+        yes_button = QPushButton("Yes")
+        no_button = QPushButton("No")
 
-        self.button = QPushButton("Delete Record")
-        self.button.clicked.connect(self.delete)
-        layout.addWidget(self.button)
+        layout.addWidget(confirmation, 0, 0, 1, 2)
+        layout.addWidget(yes_button, 1, 0)
+        layout.addWidget(no_button, 1, 1)
+
+        yes_button.clicked.connect(self.delete)
+        no_button.clicked.connect(self.close_window)
 
     def delete(self):
-        name = self.search_bar.text()
+        index = main_window.table.currentRow()
+        # get id from selected row
+        student_id = main_window.table.item(index, 0).text()
         connection = psycopg2.connect(
             dbname="python_mega_course",  # Replace with your database name
             user="postgres",  # Replace with your PostgreSQL username
@@ -231,11 +249,21 @@ class DeleteDialog(QDialog):
         )
 
         cursor = connection.cursor()
-        cursor.execute("DELETE FROM students WHERE name = %s", (name,))
+        cursor.execute("DELETE FROM students WHERE id = %s", (student_id,))
         connection.commit()
         cursor.close()
         connection.close()
         main_window.load_data()
+
+        self.close()
+
+        confirmation_widget = QMessageBox()
+        confirmation_widget.setWindowTitle("Success")
+        confirmation_widget.setText("The record was deleted successfully!")
+        confirmation_widget.exec()
+
+    def close_window(self):
+        self.close()
 
 
 class EditDialog(QDialog):
