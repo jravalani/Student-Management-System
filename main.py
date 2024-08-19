@@ -47,6 +47,27 @@ class MainWindow(QMainWindow):
         toolbar.addAction(add_student_action)
         toolbar.addAction(search_action)
 
+        # creating statusbar and adding elements
+        self.statusbar = QStatusBar()
+        self.setStatusBar(self.statusbar)
+
+        # detecting a cell click
+        self.table.cellClicked.connect(self.cell_clicked)
+
+    def cell_clicked(self):
+        edit_button = QPushButton("Edit Record")
+        edit_button.clicked.connect(self.edit)
+        delete_button = QPushButton("Delete Record")
+        delete_button.clicked.connect(self.delete)
+
+        children = self.findChildren(QPushButton)
+        if children:
+            for child in children:
+                self.statusbar.removeWidget(child)
+
+        self.statusbar.addWidget(edit_button)
+        self.statusbar.addWidget(delete_button)
+
 
     def load_data(self):
         connection = psycopg2.connect(
@@ -81,6 +102,10 @@ class MainWindow(QMainWindow):
 
     def delete(self):
         dialog = DeleteDialog()
+        dialog.exec()
+
+    def edit(self):
+        dialog = EditDialog()
         dialog.exec()
         
 
@@ -207,6 +232,67 @@ class DeleteDialog(QDialog):
 
         cursor = connection.cursor()
         cursor.execute("DELETE FROM students WHERE name = %s", (name,))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        main_window.load_data()
+
+
+class EditDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Update Record")
+        self.setFixedWidth(300)
+        self.setFixedHeight(300)
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        # get student name from selected row
+        index = main_window.table.currentRow()
+        current_student_name = main_window.table.item(index, 1).text()
+
+        # get id from selected row
+        self.student_id = main_window.table.item(index, 0).text()
+
+        # add student name
+        self.student_name = QLineEdit(current_student_name)
+        self.student_name.setPlaceholderText("Name")
+        layout.addWidget(self.student_name)
+
+        # add course list combo box
+        course_name = main_window.table.item(index, 2).text()
+        self.course_list = QComboBox()
+        courses = ["Biology", "Math", "Astronomy", "Physics"]
+        self.course_list.addItems(courses)
+        self.course_list.setCurrentText(course_name)
+        layout.addWidget(self.course_list)
+
+        # add mobile number
+        mobile_number = main_window.table.item(index, 3).text()
+        self.mobile = QLineEdit(mobile_number)
+        self.mobile.setPlaceholderText("Mobile Number")
+        layout.addWidget(self.mobile)
+
+        # add a submit button
+        button = QPushButton("Edit")
+        button.clicked.connect(self.edit_student)
+        layout.addWidget(button)
+
+    def edit_student(self):
+        connection = psycopg2.connect(
+            dbname="python_mega_course",  # Replace with your database name
+            user="postgres",  # Replace with your PostgreSQL username
+            password="root",  # Replace with your PostgreSQL password
+            host="localhost",  # Replace with your database host (usually 'localhost')
+            port="5432"
+        )
+        cursor = connection.cursor()
+        cursor.execute("UPDATE students set name = %s, course = %s, mobile = %s WHERE id = %s",
+                       (self.student_name.text(),
+                        self.course_list.itemText(self.course_list.currentIndex()),
+                        self.mobile.text(),
+                        self.student_id))
         connection.commit()
         cursor.close()
         connection.close()
